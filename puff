@@ -1,0 +1,108 @@
+#!/usr/local/bin/python
+
+#Author:Thomas Cho
+#Returns decoded file
+
+from sys import *
+import string, bit_io
+
+
+codeList=list()
+#Returns huff tree w/ freq
+def buildTree(huffTree):
+	while len(huffTree)>1:
+		firstTwo = list(huffTree[0:2]) #Get the first two to combine
+		#print firstTwo
+		#print type(firstTwo)
+		remainder = huffTree[2:] #We took the first two out
+		#print remainder
+		combinedFreq = firstTwo[0][0] + firstTwo[1][0] #Taking the first element first freq + second element second freq
+		#print combinedFreq
+		huffTree = remainder + [(combinedFreq,firstTwo)] #Getting that branch back to the tree
+		#print tuples
+		huffTree=sorted(huffTree, key= lambda x:x[0]) #new iteration of huffman tree that will loop
+	#print len(huffTree)
+	j= huffTree[0] #return the single inside the list
+	return j
+	#print j
+
+#Returns tree w/o freq
+def trimHuffTree(tree):
+	#Trim the freq counters off, leaving just the letters 
+	p=tree[1] #removing freq first element
+	if type(p) == type(""): return p #if it's a leaf return it
+	else: return list((trimHuffTree(p[0]),trimHuffTree(p[1]))) #trim left and right 
+
+#Return code table
+def assignCodes(node, code=''):
+	global codeList
+	if type(node) == type(""):
+
+		codeList.append([node,code])
+		#codes[node]=code
+	else:
+		assignCodes(node[0], code+"0")
+		assignCodes(node[1],code+"1")
+	return codeList
+#encodes file
+def encode(str):
+	global codeList
+	output=""
+	for x in str:
+		for y in codeList:
+			if x==y[0]:
+				output+=y[1]
+	return output
+
+#decodes file
+def decode(tree, str):
+	output=''
+	p = tree
+	for x in str:
+		if x =='0': p = p[0]
+		else:		p = p[1]
+		if type(p) == type(""):
+			output+=p
+			p=tree
+	return output
+
+
+def main():
+	debug=None
+	bitlist=list() #list of bits from text
+
+	#Opening the frequency table
+	with open(argv[1], 'rb') as input, open(argv[2],'wb') as output:
+		lineList=input.readlines()
+		sizeMessage=lineList[-1] #Returns text size of original file
+		sizeMessage=int(sizeMessage)	#Returns int 
+		last_Line=lineList[-2] #Returns Freq table
+		table=eval(last_Line)		
+		tree=buildTree(table) #build tree
+		tree=trimHuffTree(tree)
+		assignCodes(tree)
+
+	with bit_io.BitReader(argv[1]) as input, open(argv[2], 'wb') as output:
+		
+		while True:
+			c=input.readbit() #read bit at a time
+			if c==None: break #Returns either '1' or '0'
+			bitlist.append(c)
+		bitlist=[str(x) for x in bitlist] #Return str
+		bitstring=''
+		bitstring=bitstring.join(bitlist)
+
+		original = decode(tree,bitstring) #Returns decoded file w/ table decoded. Need to remove
+		originalwithouttable="" #Will become the new decoded message
+		index=0  #counter
+		#Returns full message that == original text size
+		for ch in original:
+			if (index) < (sizeMessage):
+				originalwithouttable=originalwithouttable+ch
+				index+=1
+				
+		#Writing output to file
+		f=output.write(originalwithouttable)
+
+
+if __name__ == "__main__" : main()

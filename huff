@@ -1,0 +1,127 @@
+#!/usr/local/bin/python
+#Author: Thomas Cho
+#Returns encoded Huffman code for text, frequency table, size of text
+
+from sys import *
+import string, bit_io
+
+codeList=list() #List of List of codes to encode
+#Returns sorted freq table
+def freqTable(text):
+	freqList=list() #list for adding freq + character
+	[freqList.append(c) for c in text]
+	freqList = [(freqList.count(x),x) for x in set(freqList)]
+	# for x in freqList:
+	# 	num=ord(x[1]) #takes the second input which is the character
+	# 	testlist=(x[0],num)
+	testlist=[(x[0],ord(x[1])) for x in set(freqList)]
+	sortedFreqList = sorted(freqList, key = lambda x:x[0])
+	return sortedFreqList
+
+#Returns huff tree w/ freq
+def buildTree(huffTree):
+	while len(huffTree)>1:
+		firstTwo = list(huffTree[0:2]) #Get the first two to combine
+		#print firstTwo
+		#print type(firstTwo)
+		remainder = huffTree[2:] #We took the first two out
+		#print remainder
+		combinedFreq = firstTwo[0][0] + firstTwo[1][0] #Taking the first element first freq + second element second freq
+		#print combinedFreq
+		huffTree = remainder + [(combinedFreq,firstTwo)] #Getting that branch back to the tree
+		#print tuples
+		huffTree=sorted(huffTree, key= lambda x:x[0]) #new iteration of huffman tree that will loop
+	#print len(huffTree)
+	j= huffTree[0] #return the single inside the list
+	return j
+
+#Returns tree w/o freq
+def trimHuffTree(tree):
+	#Trim the freq counters off, leaving just the letters 
+	p=tree[1] #removing freq first element
+	if type(p) == type(""): return p #if it's a leaf return it
+	else: return list((trimHuffTree(p[0]),trimHuffTree(p[1]))) #trim left and right 
+
+#Returns code table
+def assignCodes(node, code=''):
+	global codeList #code table so we dont have to traverse the tree all the time
+	if type(node) == type(""):
+
+		codeList.append([node,code]) #code for the leaf
+		#codes[node]=code
+	else:
+		assignCodes(node[0], code+"0") #Left Branch
+		assignCodes(node[1],code+"1") #Right Branch
+	return codeList
+
+#Returns encoded file
+def encode(str):
+	global codeList
+	output=""
+	for x in str:
+		for y in codeList:
+			if x==y[0]:
+				output+=y[1]
+	return output 
+
+#Returns decoded file
+def decode(tree, str):
+	output=''
+	p = tree
+	for x in str:
+		if x =='0': p = p[0]
+		else:		p = p[1]
+		if type(p) == type(""):
+			output+=p
+			p=tree
+	return output
+#Used to store the table @ bottom of encoded file
+def freqTabletoString(table):
+	String= str(table)
+	return String
+#Used to store the size of the text 
+def Messagecount(message):
+	Messagecount=0
+	for x in message:
+		Messagecount+=1
+	Messagecount=str(Messagecount)
+	return Messagecount
+
+def main():
+	debug = None
+	c= open(argv[1], 'rb') #Reading second argument text as binary
+	c= c.read()
+
+	
+	count= freqTable(c)
+	#print "^^ This is the freq table"
+
+	tree= buildTree(count)
+	#print tree
+	#print "^^ THis is the tree"
+	if debug: print "Built tree", tree
+
+	tree=trimHuffTree(tree)
+	if debug: print "Trimmed tree", tree
+	#print "^^This is trimmed tree"
+
+	s= assignCodes(tree)
+	#print s, type(s), len(s)
+	#print "^^This is the code"
+	with open(argv[1], 'rb') as input, bit_io.BitWriter(argv[2]) as output:
+		text=input.read()
+		Shrink=encode(text)
+		Shrink=[map(int,x) for x in Shrink]
+		# print Shrink
+		#writing each bit into the file
+		for x in Shrink:
+			output.writebit(x[0])
+
+	with open(argv[1], 'rb') as input, open(argv[2],'a') as output:
+		Table= freqTabletoString(count) #freq table
+		output.write("\n")
+		output.write(Table)
+		sizeMessage=Messagecount(text) #size of text 
+		output.write("\n")
+		output.write(sizeMessage)
+if __name__=="__main__": main()
